@@ -8,7 +8,7 @@
 
 To install this program use [abapGit](https://github.com/abapGit/abapGit/) or create program [ZUML_CLASS_DIAGRAM](https://github.com/coreline/ZUML_DIAGRAM/blob/main/src/zuml_class_diagram.prog.abap) and insert ABAP code in it. [PlantUML](http://www.plantuml.com/) is used to draw the diagram. UML displays via CL_GUI_HTML_VIEWER across internet. Java is not required.
 Demonstration of the program using the example of the Z-MB51
-![UML Class Diagramm example for ZMB51](https://raw.githubusercontent.com/coreline/ZUML_DIAGRAM/main/img/demo_zmb51_ru.png)
+![UML Class Diagramm example for ZMB51](https://raw.githubusercontent.com/coreline/ZUML_DIAGRAM/main/img/demo_zmb51_en.png)
 
 # Описание [RUS]
 
