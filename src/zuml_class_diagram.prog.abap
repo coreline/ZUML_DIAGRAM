@@ -356,6 +356,7 @@ CLASS zcl_uml_class_scanner IMPLEMENTATION.
     get_diagram( CHANGING c_data = lo_tab ).
     ASSIGN lo_tab->* TO <lt_tab>.
     ASSERT sy-subrc EQ 0.
+    SORT <lt_tab> BY name.
     MOVE <lt_tab>[] TO rt_uml[].
 
     DELETE rt_uml WHERE kind NA 'OFP'. " Object/Function/Program
@@ -442,6 +443,7 @@ CLASS zcl_uml_class_scanner IMPLEMENTATION.
     DATA(lt_uml_tab) = retrieve_diagram( is_attrs ).
 
     lt_uml = VALUE #( BASE lt_uml ( |@startuml| ) ).
+    lt_uml = VALUE #( BASE lt_uml ( |skinparam shadowing false| ) ).
     lt_uml = VALUE #( BASE lt_uml ( |set namespaceSeparator ::| ) ).
     LOOP AT lt_uml_tab ASSIGNING FIELD-SYMBOL(<lt_uml>)
       GROUP BY <lt_uml>-container.
@@ -527,6 +529,10 @@ CLASS lcl_app IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD execute.
+    IF ms_criteria-scan_packages[] IS INITIAL.
+      MESSAGE s145(pak) DISPLAY LIKE rs_c_error. " Задайте пакет
+      RETURN.
+    ENDIF.
     cl_uml_cache=>get_singleton( )->clear_type_cache( ).
     TRY.
         DATA(lo_uml) = NEW zcl_uml_class_scanner( ).
