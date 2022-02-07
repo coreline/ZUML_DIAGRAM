@@ -494,7 +494,7 @@ CLASS lcl_app DEFINITION CREATE PRIVATE.
     METHODS display_diagram.
 
   PRIVATE SECTION.
-    CONSTANTS mc_base_url TYPE string VALUE 'http://abap4.ru/plantuml/'.
+    CONSTANTS mc_base_url TYPE string VALUE 'https://abap4.ru/plantuml/'.
     CLASS-DATA mo_instance TYPE REF TO lcl_app.
     DATA mv_uml_text TYPE string.
     DATA ms_criteria TYPE mts_criteria.
