@@ -131,14 +131,16 @@ CLASS zcl_uml_class_base IMPLEMENTATION.
     DATA(lv_type) = substring_before( val = lv_first sub = '=' ).
     DATA(lv_name) = substring_after( val = lv_first sub = '=' ).
     CASE lv_type.
-      WHEN cl_uml_class_scanner=>c_t_class OR cl_uml_class_scanner=>c_t_cpool.
+      WHEN cl_uml_class_scanner=>c_t_fugr
+        OR cl_uml_class_scanner=>c_t_fpool.
+        rs_adir_key = VALUE #( pgmid = 'R3TR' object = 'FUGR' obj_name = lv_name ).
+      WHEN cl_uml_class_scanner=>c_t_class
+        OR cl_uml_class_scanner=>c_t_cpool.
         rs_adir_key = VALUE #( pgmid = 'R3TR' object = 'CLAS' obj_name = lv_name ).
       WHEN cl_uml_class_scanner=>c_t_interface.
         rs_adir_key = VALUE #( pgmid = 'R3TR' object = 'INTF' obj_name = lv_name ).
       WHEN cl_uml_class_scanner=>c_t_program.
         rs_adir_key = VALUE #( pgmid = 'R3TR' object = 'PROG' obj_name = lv_name ).
-      WHEN cl_uml_class_scanner=>c_t_fugr OR cl_uml_class_scanner=>c_t_fpool.
-        rs_adir_key = VALUE #( pgmid = 'R3TR' object = 'FUGR' obj_name = lv_name ).
     ENDCASE.
   ENDMETHOD.
 
@@ -488,6 +490,8 @@ CLASS lcl_app DEFINITION CREATE PRIVATE.
 
     METHODS execute.
     METHODS open_browser.
+    METHODS display_source.
+    METHODS display_diagram.
 
   PRIVATE SECTION.
     CONSTANTS mc_base_url TYPE string VALUE 'http://abap4.ru/plantuml/'.
@@ -496,9 +500,11 @@ CLASS lcl_app DEFINITION CREATE PRIVATE.
     DATA ms_criteria TYPE mts_criteria.
     DATA mo_docking TYPE REF TO cl_gui_docking_container.
     DATA mo_html_viewer TYPE REF TO cl_gui_html_viewer .
+    DATA mo_text_viewer TYPE REF TO cl_gui_textedit .
 
     METHODS constructor.
-    METHODS display_uml.
+    METHODS refresh_html_view.
+    METHODS refresh_text_view.
     METHODS get_encoded_uml
       RETURNING VALUE(rv_url) TYPE string.
 
@@ -510,10 +516,19 @@ CLASS lcl_app IMPLEMENTATION.
 
     mo_docking = NEW #( side = cl_gui_docking_container=>dock_at_right ratio = 50 ).
     mo_html_viewer = NEW #( parent = mo_docking ).
+    mo_text_viewer = NEW #(
+        parent                     = mo_docking
+        wordwrap_mode              = cl_gui_textedit=>wordwrap_at_windowborder
+        wordwrap_to_linebreak_mode = cl_gui_textedit=>false ).
+    mo_text_viewer->set_font_fixed( cl_gui_textedit=>true ).
+    mo_text_viewer->set_toolbar_mode( cl_gui_textedit=>true ).
+    mo_text_viewer->set_statusbar_mode( cl_gui_textedit=>false ).
+
     mo_docking->get_width( IMPORTING width = lv_width ).
     cl_gui_cfw=>flush( ).
     lv_width = lv_width * 2 - cl_gui_cfw=>compute_metric_from_dynp( x_or_y = 'X' in = 61 ).
     mo_docking->set_width( lv_width ).
+    display_diagram( ).
   ENDMETHOD.
 
   METHOD get_instance.
@@ -549,16 +564,17 @@ CLASS lcl_app IMPLEMENTATION.
           scan_types = ms_criteria-scan_types
         ).
         mv_uml_text = lo_uml->build_plant_uml( CORRESPONDING #( ms_criteria ) ).
-        display_uml( ).
+        refresh_html_view( ).
+        refresh_text_view( ).
       CATCH cx_root INTO DATA(lx_uml).
         MESSAGE lx_uml TYPE rs_c_info DISPLAY LIKE rs_c_error.
     ENDTRY.
   ENDMETHOD.
 
-  METHOD display_uml.
+  METHOD refresh_html_view.
     DATA(lv_html) = |<html>|
                  && |<body>|
-                 && |<iframe id="iframe" src="{ mc_base_url }" style="width: 100%;height:100%;border:0;margin:0;padding:0;"></iframe>|
+                 && |<iframe id="iframe" src="{ mc_base_url }?local=1" style="width: 100%;height:100%;border:0;margin:0;padding:0;"></iframe>|
                  && |<script>|
                  && |var iframe = window.document.getElementById("iframe");|
                  && 'iframe.onload = function(){'
@@ -616,6 +632,10 @@ CLASS lcl_app IMPLEMENTATION.
     ENDIF.
   ENDMETHOD.
 
+  METHOD refresh_text_view.
+    mo_text_viewer->set_textstream( mv_uml_text ).
+  ENDMETHOD.
+
   METHOD get_encoded_uml.
     TYPES ltv_base64 TYPE c LENGTH 65.
     CONSTANTS lc_standard TYPE ltv_base64 VALUE 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/='.
@@ -653,6 +673,16 @@ CLASS lcl_app IMPLEMENTATION.
       MESSAGE ID sy-msgid TYPE rs_c_success NUMBER sy-msgno
         WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4 DISPLAY LIKE sy-msgty.
     ENDIF.
+  ENDMETHOD.
+
+  METHOD display_source.
+    mo_html_viewer->set_visible( abap_false ).
+    mo_text_viewer->set_visible( abap_true ).
+  ENDMETHOD.
+
+  METHOD display_diagram.
+    mo_html_viewer->set_visible( abap_true ).
+    mo_text_viewer->set_visible( abap_false ).
   ENDMETHOD.
 ENDCLASS.
 
@@ -776,6 +806,8 @@ ENDCLASS.
 TABLES: sscrfields, tadir.
 SELECTION-SCREEN FUNCTION KEY 1.                     "#EC CI_USE_WANTED
 SELECTION-SCREEN FUNCTION KEY 2.                     "#EC CI_USE_WANTED
+SELECTION-SCREEN FUNCTION KEY 3.                     "#EC CI_USE_WANTED
+SELECTION-SCREEN FUNCTION KEY 4.                     "#EC CI_USE_WANTED
 
 SELECTION-SCREEN BEGIN OF BLOCK scanner_settings WITH FRAME TITLE text-scn NO INTERVALS.
 SELECT-OPTIONS s_scan_p FOR tadir-devclass NO INTERVALS.
@@ -806,6 +838,8 @@ INITIALIZATION.
   s_disp_p[] = VALUE #( ( sign = 'I' option = 'CP' low = 'Z*' ) ).
   sscrfields-functxt_01 = lcl_ss=>steal_function( 'ONLI' ).
   sscrfields-functxt_02 = lcl_ss=>create_function( icon_url ).
+  sscrfields-functxt_03 = lcl_ss=>create_function( icon_change_text ).
+  sscrfields-functxt_04 = lcl_ss=>create_function( icon_bw_apd_visualization ).
   lcl_app=>get_instance( ).
   CASE sy-langu.
     WHEN 'R'. " Russian
@@ -872,8 +906,6 @@ AT SELECTION-SCREEN.
           scan_used_types = f_scan_u
           scan_packages = s_scan_p[]
           scan_types = s_scan_o[]
-          display_packages = s_disp_p[]
-          display_types = s_disp_o[]
           display_attributes = f_disp_a
           display_methods = f_disp_m
           display_events = f_disp_e
@@ -886,4 +918,8 @@ AT SELECTION-SCREEN.
       ) )->execute( ).
     WHEN 'FC02'.
       lcl_app=>get_instance( )->open_browser( ).
+    WHEN 'FC03'.
+      lcl_app=>get_instance( )->display_source( ).
+    WHEN 'FC04'.
+      lcl_app=>get_instance( )->display_diagram( ).
   ENDCASE.
