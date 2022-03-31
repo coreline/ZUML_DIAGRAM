@@ -115,10 +115,10 @@ CLASS zcl_uml_class_base IMPLEMENTATION.
 
   METHOD get_name.
     DATA(lv_name) = substring_after( val = ms_uml_line-name sub = mv_abs_type && '=' ).
-    IF iv_escape EQ abap_true AND lv_name CA '\=/'.
+    DATA(lv_container) = get_container( ).
+    IF iv_escape EQ abap_true AND lv_name CA '\=/' AND lv_container IS INITIAL.
       lv_name = |"{ lv_name }"|.
     ENDIF.
-    DATA(lv_container) = get_container( ).
     IF lv_container IS NOT INITIAL.
       rv_value = |{ lv_container }::{ lv_name }|.
     ELSE.
@@ -221,10 +221,15 @@ CLASS zcl_uml_class_base IMPLEMENTATION.
   METHOD build_relation.
     DATA(lv_prefix) = ||.
     DATA(lv_suffix) = ||.
+    DATA(lv_name) = get_name( ).
     IF iv_back EQ space.
-      lv_prefix = |{ get_name( ) } { iv_sep } |.
+      IF lv_name CA '"'.
+        lv_prefix = |{ lv_name } { iv_sep } |.
+      ELSE.
+        lv_prefix = |"{ lv_name }" { iv_sep } |.
+      ENDIF.
     ELSE.
-      lv_suffix = | { iv_sep } { get_name( ) }|.
+      lv_suffix = | { iv_sep } { lv_name }|.
     ENDIF.
     IF iv_comment IS NOT INITIAL.
       lv_suffix = |{ lv_suffix } { iv_comment }|.
